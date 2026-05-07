@@ -297,10 +297,12 @@ function PublicView({ events, monthView, setMonthView }) {
     setDownloading(true);
     try {
       const canvas = await html2canvas(el, {
-        backgroundColor: BLACK,
-        scale: 2,
+        backgroundColor: "#000000",
+        scale: 3,
         useCORS: true,
         logging: false,
+        width: CARD_W,
+        height: CARD_H,
       });
       const a = document.createElement("a");
       a.href = canvas.toDataURL("image/png");
@@ -537,177 +539,243 @@ function PublicView({ events, monthView, setMonthView }) {
 }
 
 // ─── MOBILE SHARE CARD ────────────────────────────────────────────────────────
+// 9:19.5 ratio at 3× → 1170×2532 output
 const CARD_W = 390;
+const CARD_H = Math.round(CARD_W * 19.5 / 9); // 845
 
 function MobileShareCard({ cardRef, events, pubTab, monthView, today }) {
-  const upcoming = events
-    .filter(e => e.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
+  const upcoming = events.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
   const monthKey = `${monthView.year}-${String(monthView.month + 1).padStart(2, "0")}`;
-  const monthEvs = events
-    .filter(e => e.date.startsWith(monthKey))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const monthEvs = events.filter(e => e.date.startsWith(monthKey)).sort((a, b) => a.date.localeCompare(b.date));
 
-  const S = {
-    wrap:     { position: "fixed", left: -9999, top: 0, width: CARD_W, zIndex: -1 },
-    card:     { width: CARD_W, background: BLACK, fontFamily: "'DM Sans',sans-serif", color: TEXT },
-    hdr:      { background: `linear-gradient(135deg,#111 0%,${BLACK} 60%)`, padding: "18px 16px 14px", borderBottom: `2px solid ${GOLD}30`, position: "relative", overflow: "hidden" },
-    hdrGlow:  { position: "absolute", inset: 0, background: `radial-gradient(ellipse 80% 100% at 100% 50%,${GOLD}09 0%,transparent 70%)`, pointerEvents: "none" },
-    logoRow:  { display: "flex", alignItems: "center", gap: 8, marginBottom: 10 },
-    logoMark: { width: 28, height: 28, background: GOLD, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 900, color: BLACK, fontFamily: "'Bebas Neue',sans-serif", letterSpacing: 1, flexShrink: 0 },
-    logoText: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 17, letterSpacing: 2, color: GOLD, lineHeight: 1 },
-    logoSub:  { fontSize: 8, letterSpacing: 2, color: TEXT_MUTED, fontWeight: 700, marginTop: 1 },
-    htitle:   { fontFamily: "'Bebas Neue',sans-serif", fontSize: 30, letterSpacing: 2, lineHeight: 1, color: TEXT },
-    hgold:    { color: GOLD },
-    hsub:     { fontSize: 10, color: TEXT_MUTED, marginTop: 5, lineHeight: 1.5 },
-    stats:    { display: "flex", gap: 14, marginTop: 12 },
-    stn:      { fontFamily: "'Bebas Neue',sans-serif", fontSize: 22, color: GOLD, lineHeight: 1 },
-    stl:      { fontSize: 8, color: TEXT_MUTED, letterSpacing: 1, marginTop: 1 },
-    body:     { padding: "12px 14px" },
-    secLbl:   { fontSize: 9, letterSpacing: 3, color: GOLD, fontWeight: 700, marginBottom: 8 },
-    evRow:    { display: "flex", gap: 10, marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${SURFACE2}` },
-    datebox:  { flexShrink: 0, width: 42, textAlign: "center", background: GOLD + "12", borderRadius: 7, padding: "5px 3px", border: `1px solid ${GOLD}20` },
-    dmo:      { fontSize: 8, fontWeight: 700, color: GOLD, letterSpacing: 1 },
-    dday:     { fontFamily: "'Bebas Neue',sans-serif", fontSize: 24, color: TEXT, lineHeight: 1 },
-    evbody:   { flex: 1, minWidth: 0 },
-    catbadge: { fontSize: 8, fontWeight: 700, padding: "1px 6px", borderRadius: 8, display: "inline-block", marginBottom: 3 },
-    evname:   { fontSize: 12, fontWeight: 700, lineHeight: 1.3, marginBottom: 3 },
-    evmeta:   { fontSize: 10, color: TEXT_MUTED, lineHeight: 1.5 },
-    foot:     { textAlign: "center", padding: "12px 10px 14px", borderTop: `1px solid ${SURFACE2}`, marginTop: 4 },
-    footLogo: { fontFamily: "'Bebas Neue',sans-serif", fontSize: 14, letterSpacing: 2, color: GOLD, marginBottom: 2 },
-    footSub:  { fontSize: 9, color: TEXT_MUTED },
+  const now = new Date();
+  const timeStr = `${now.getHours() % 12 || 12}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+  // iOS dark mode palette
+  const C = {
+    bg:    "#000000",
+    card:  "#1C1C1E",
+    cell:  "#2C2C2E",
+    sep:   "rgba(255,255,255,0.1)",
+    l1:    "#FFFFFF",
+    l2:    "rgba(255,255,255,0.55)",
+    l3:    "rgba(255,255,255,0.28)",
   };
 
-  const renderEventRow = ev => {
-    const parts = ev.date.split("-");
-    const mo    = MONTHS[parseInt(parts[1]) - 1].slice(0, 3).toUpperCase();
-    const day   = parseInt(parts[2]);
-    const cat   = CATEGORIES[ev.category] || {};
+  const EventRow = ({ ev }) => {
+    const parts  = ev.date.split("-");
+    const mo     = MONTHS[parseInt(parts[1]) - 1].slice(0, 3).toUpperCase();
+    const day    = parseInt(parts[2]);
+    const cat    = CATEGORIES[ev.category] || {};
+    const isToday = ev.date === today;
     return (
-      <div key={ev.id} style={S.evRow}>
-        <div style={S.datebox}>
-          <div style={S.dmo}>{mo}</div>
-          <div style={S.dday}>{day}</div>
-          {ev.date === today && <div style={{ fontSize: 7, color: GOLD, fontWeight: 700, letterSpacing: .5, marginTop: 1 }}>TODAY</div>}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", borderBottom: `0.5px solid ${C.sep}` }}>
+        {/* Date badge */}
+        <div style={{
+          width: 42, height: 42, borderRadius: 10, flexShrink: 0,
+          background: isToday ? GOLD : cat.color + "22",
+          border: `1.5px solid ${isToday ? GOLD : cat.color + "55"}`,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        }}>
+          <div style={{ fontSize: 7, fontWeight: 700, color: isToday ? "#000" : cat.color, letterSpacing: 0.5, lineHeight: 1 }}>{mo}</div>
+          <div style={{ fontSize: 19, fontWeight: 700, color: isToday ? "#000" : C.l1, lineHeight: 1.1, fontFamily: "'Bebas Neue',sans-serif" }}>{day}</div>
         </div>
-        <div style={S.evbody}>
-          <span style={{ ...S.catbadge, background: cat.color + "20", color: cat.color }}>{cat.icon} {ev.category.replace("_", " ")}{ev.recurring ? " ↻" : ""}</span>
-          <div style={S.evname}>{ev.name}{ev.priority === "High" ? <span style={{ color: GOLD, fontSize: 10, marginLeft: 4 }}>★</span> : null}</div>
-          <div style={S.evmeta}>🕐 {ev.time}{ev.endTime ? ` – ${ev.endTime}` : ""}</div>
-          <div style={S.evmeta}>📍 {ev.location}</div>
+        {/* Text */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.l1, lineHeight: 1.3, marginBottom: 2, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+            {ev.name}{ev.priority === "High" && <span style={{ color: GOLD, marginLeft: 5, fontSize: 11 }}>★</span>}
+          </div>
+          <div style={{ fontSize: 12, color: C.l2, lineHeight: 1.4 }}>
+            {ev.time}{ev.endTime ? ` – ${ev.endTime}` : ""}
+          </div>
+          <div style={{ fontSize: 11, color: C.l3, lineHeight: 1.4, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>
+            {ev.location}
+          </div>
         </div>
+        {/* Category dot */}
+        <div style={{ width: 9, height: 9, borderRadius: "50%", background: cat.color, flexShrink: 0 }} />
       </div>
     );
   };
 
   return (
-    <div style={S.wrap}>
-      <div ref={cardRef} style={S.card}>
+    <div style={{ position: "fixed", left: -9999, top: 0, zIndex: -1 }}>
+      <div ref={cardRef} style={{
+        width: CARD_W, height: CARD_H, overflow: "hidden",
+        background: C.bg, fontFamily: "'DM Sans',sans-serif", color: C.l1,
+        position: "relative",
+      }}>
 
-        {/* ── HEADER ── */}
-        <div style={S.hdr}>
-          <div style={S.hdrGlow} />
-          <div style={S.logoRow}>
-            <div style={S.logoMark}>KK</div>
-            <div>
-              <div style={S.logoText}>KINGDOM <span style={{ color: TEXT }}>KEYS</span></div>
-              <div style={S.logoSub}>MENTORING PROGRAM</div>
+        {/* ── STATUS BAR ── */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 28px 0", height: 44 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: -0.3 }}>{timeStr}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {/* Signal */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 1.5 }}>
+              {[3, 5, 7, 9].map((h, i) => <div key={i} style={{ width: 3, height: h, borderRadius: 1.5, background: i < 3 ? C.l1 : C.l3 }} />)}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.l1, letterSpacing: -0.2 }}>WiFi</div>
+            {/* Battery */}
+            <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <div style={{ width: 25, height: 12, border: `1.5px solid rgba(255,255,255,0.35)`, borderRadius: 3.5, padding: 1.5, display: "flex", alignItems: "center" }}>
+                <div style={{ width: "80%", height: "100%", background: GOLD, borderRadius: 1.5 }} />
+              </div>
+              <div style={{ width: 2, height: 5, background: C.l3, borderRadius: 1 }} />
             </div>
           </div>
-          {pubTab === "upcoming" ? (
-            <>
-              <div style={S.htitle}>UPCOMING <span style={S.hgold}>EVENTS</span></div>
-              <div style={S.hsub}>Stay locked in. Show up ready. Be great.</div>
-              <div style={S.stats}>
-                <div><div style={S.stn}>{upcoming.length}</div><div style={S.stl}>UPCOMING</div></div>
-                <div><div style={S.stn}>{upcoming.filter(e => e.priority === "High").length}</div><div style={S.stl}>MUST-ATTEND</div></div>
-                <div><div style={S.stn}>{upcoming.filter(e => e.recurring).length}</div><div style={S.stl}>WEEKLY</div></div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={S.htitle}><span style={S.hgold}>{MONTHS[monthView.month].toUpperCase()}</span> {monthView.year}</div>
-              <div style={S.hsub}>Monthly event calendar · Kingdom KEYS Mentoring</div>
-              <div style={S.stats}>
-                <div><div style={S.stn}>{monthEvs.length}</div><div style={S.stl}>THIS MONTH</div></div>
-                <div><div style={S.stn}>{monthEvs.filter(e => e.priority === "High").length}</div><div style={S.stl}>HIGH PRIORITY</div></div>
-              </div>
-            </>
-          )}
         </div>
 
-        {/* ── BODY ── */}
-        <div style={S.body}>
-          {pubTab === "upcoming" ? (
-            <>
-              <div style={S.secLbl}>— SCHEDULE</div>
-              {upcoming.length === 0
-                ? <div style={{ textAlign: "center", padding: 24, color: TEXT_MUTED, fontSize: 12 }}>No upcoming events.</div>
-                : upcoming.map(renderEventRow)
+        {/* ── DYNAMIC ISLAND ── */}
+        <div style={{
+          position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)",
+          width: 120, height: 34, background: "#000", borderRadius: 20, border: "1.5px solid #111",
+        }} />
+
+        {/* ── APP HEADER ── */}
+        <div style={{ padding: "10px 20px 14px", borderBottom: `0.5px solid ${C.sep}` }}>
+          {/* Brand row */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 9,
+                background: `linear-gradient(135deg,${GOLD} 0%,#E09000 100%)`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: `0 3px 10px ${GOLD}55`,
+              }}>
+                <span style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 15, fontWeight: 900, color: "#000", letterSpacing: 0.5 }}>KK</span>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, letterSpacing: 1.5, lineHeight: 1 }}>KINGDOM KEYS</div>
+                <div style={{ fontSize: 9, color: C.l3, letterSpacing: 0.5, marginTop: 1 }}>MENTORING PROGRAM</div>
+              </div>
+            </div>
+            <div style={{
+              background: GOLD + "18", border: `1px solid ${GOLD}35`,
+              borderRadius: 999, padding: "4px 11px",
+              fontSize: 10, fontWeight: 700, color: GOLD, letterSpacing: 0.5,
+            }}>
+              {pubTab === "upcoming"
+                ? `${upcoming.length} Events`
+                : `${MONTHS[monthView.month].slice(0,3).toUpperCase()} ${monthView.year}`
               }
-            </>
-          ) : (
-            <>
-              {/* Calendar grid */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2, marginBottom: 10 }}>
-                {DAYS.map((d, i) => (
-                  <div key={d} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, padding: "3px 0", color: i === 0 || i === 6 ? GOLD : TEXT_MUTED }}>{d}</div>
-                ))}
-                {getMonthCells(monthView.year, monthView.month).map((date, idx) => {
-                  const dayEvs  = date ? events.filter(e => e.date === date) : [];
-                  const isToday = date === today;
-                  const dow     = idx % 7;
-                  const isWE    = dow === 0 || dow === 6;
-                  return (
-                    <div key={idx} style={{
-                      background: !date ? "transparent" : isToday ? GOLD + "12" : isWE ? "#0f0d00" : SURFACE,
-                      borderRadius: 4, padding: "4px 3px", minHeight: 46,
-                      border: isToday ? `1px solid ${GOLD}55` : `1px solid ${!date ? "transparent" : "#1a1a1a"}`,
-                    }}>
-                      {date && <>
-                        <div style={{
-                          fontSize: 9, fontWeight: 700, marginBottom: 2,
-                          color: isToday ? BLACK : TEXT_MUTED,
-                          background: isToday ? GOLD : "transparent",
-                          width: isToday ? 16 : "auto", height: isToday ? 16 : "auto",
-                          borderRadius: isToday ? "50%" : 0,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>{parseInt(date.split("-")[2])}</div>
-                        <div>{dayEvs.slice(0, 3).map(ev => (
-                          <span key={ev.id} style={{ display: "inline-block", width: 5, height: 5, borderRadius: "50%", background: CATEGORIES[ev.category]?.color, marginRight: 1 }} />
-                        ))}</div>
-                        {dayEvs[0] && <div style={{ fontSize: 7, color: "#777", marginTop: 1, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{dayEvs[0].name}</div>}
-                      </>}
-                    </div>
-                  );
-                })}
-              </div>
+            </div>
+          </div>
+          {/* Large title */}
+          <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 40, letterSpacing: 2, lineHeight: 1, color: C.l1 }}>
+            {pubTab === "upcoming"
+              ? <>UPCOMING <span style={{ color: GOLD }}>EVENTS</span></>
+              : <><span style={{ color: GOLD }}>{MONTHS[monthView.month].toUpperCase()}</span> {monthView.year}</>
+            }
+          </div>
+          <div style={{ fontSize: 12, color: C.l2, marginTop: 4 }}>
+            {pubTab === "upcoming"
+              ? "Stay locked in · Show up ready · Be great"
+              : "Monthly schedule · Kingdom KEYS Mentoring"
+            }
+          </div>
+        </div>
 
-              {/* Legend */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", marginBottom: 12 }}>
-                {Object.entries(CATEGORIES).filter(([c]) => events.some(e => e.category === c)).map(([c, v]) => (
-                  <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: TEXT_MUTED }}>
-                    <span style={{ display: "inline-block", width: 7, height: 7, borderRadius: 2, background: v.color }} />
-                    {v.icon} {c.replace("_", " ")}
+        {/* ── CONTENT ── */}
+        {pubTab === "upcoming" ? (
+          <>
+            {/* Stats strip */}
+            <div style={{ display: "flex", background: C.card, borderBottom: `0.5px solid ${C.sep}` }}>
+              {[
+                { n: upcoming.length,                                  l: "Upcoming"  },
+                { n: upcoming.filter(e => e.priority === "High").length, l: "Must-Attend" },
+                { n: upcoming.filter(e => e.recurring).length,         l: "Weekly"    },
+              ].map(({ n, l }, i) => (
+                <div key={l} style={{
+                  flex: 1, textAlign: "center", padding: "10px 0",
+                  borderRight: i < 2 ? `0.5px solid ${C.sep}` : "none",
+                }}>
+                  <div style={{ fontFamily: "'Bebas Neue',sans-serif", fontSize: 26, color: GOLD, lineHeight: 1 }}>{n}</div>
+                  <div style={{ fontSize: 10, color: C.l2, marginTop: 2 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Section label */}
+            <div style={{ padding: "10px 16px 6px", fontSize: 11, fontWeight: 700, color: C.l2, letterSpacing: 1 }}>SCHEDULE</div>
+
+            {/* Events */}
+            <div style={{ background: C.card, borderRadius: 14, margin: "0 14px", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+              {upcoming.slice(0, 7).map(ev => <EventRow key={ev.id} ev={ev} />)}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Month nav bar */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "8px 24px", background: C.card, borderBottom: `0.5px solid ${C.sep}`,
+            }}>
+              <div style={{ fontSize: 20, color: GOLD, fontWeight: 300 }}>‹</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: C.l1 }}>{MONTHS[monthView.month]} {monthView.year}</div>
+              <div style={{ fontSize: 20, color: GOLD, fontWeight: 300 }}>›</div>
+            </div>
+
+            {/* Day headers */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", padding: "8px 14px 3px" }}>
+              {DAYS.map((d, i) => (
+                <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 600, color: i === 0 || i === 6 ? GOLD : C.l2 }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3, padding: "2px 14px 10px" }}>
+              {getMonthCells(monthView.year, monthView.month).map((date, idx) => {
+                const dayEvs  = date ? events.filter(e => e.date === date) : [];
+                const isToday = date === today;
+                const dow     = idx % 7;
+                const isWE    = dow === 0 || dow === 6;
+                return (
+                  <div key={idx} style={{
+                    background: !date ? "transparent" : isToday ? GOLD : isWE ? "#111" : C.card,
+                    borderRadius: 8, padding: "5px 4px", minHeight: 52,
+                  }}>
+                    {date && <>
+                      <div style={{
+                        fontSize: 13, fontWeight: 600, textAlign: "center",
+                        color: isToday ? "#000" : isWE ? C.l3 : C.l1, lineHeight: 1, marginBottom: 4,
+                      }}>{parseInt(date.split("-")[2])}</div>
+                      <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 2 }}>
+                        {dayEvs.slice(0, 3).map(ev => (
+                          <div key={ev.id} style={{ width: 5, height: 5, borderRadius: "50%", background: CATEGORIES[ev.category]?.color || GOLD }} />
+                        ))}
+                      </div>
+                    </>}
                   </div>
-                ))}
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", padding: "0 16px 8px" }}>
+              {Object.entries(CATEGORIES).filter(([c]) => events.some(e => e.category === c)).map(([c, v]) => (
+                <div key={c} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, color: C.l2 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: 2, background: v.color, flexShrink: 0 }} />
+                  {v.icon} {c.replace("_", " ")}
+                </div>
+              ))}
+            </div>
+
+            {/* This month list */}
+            {monthEvs.length > 0 && <>
+              <div style={{ padding: "0 16px 6px", fontSize: 11, fontWeight: 700, color: C.l2, letterSpacing: 1 }}>THIS MONTH</div>
+              <div style={{ background: C.card, borderRadius: 14, margin: "0 14px", overflow: "hidden", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+                {monthEvs.slice(0, 4).map(ev => <EventRow key={ev.id} ev={ev} />)}
               </div>
+            </>}
+          </>
+        )}
 
-              {/* This month list */}
-              {monthEvs.length > 0 && <>
-                <div style={S.secLbl}>— THIS MONTH</div>
-                {monthEvs.map(renderEventRow)}
-              </>}
-            </>
-          )}
-        </div>
+        {/* ── HOME INDICATOR ── */}
+        <div style={{
+          position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
+          width: 134, height: 5, background: C.l1, borderRadius: 3, opacity: 0.35,
+        }} />
 
-        {/* ── FOOTER ── */}
-        <div style={S.foot}>
-          <div style={S.footLogo}>KINGDOM KEYS MENTORING</div>
-          <div style={S.footSub}>College &amp; Career Readiness · Empowering the Next Generation</div>
-        </div>
       </div>
     </div>
   );
