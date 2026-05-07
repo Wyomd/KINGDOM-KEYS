@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import html2canvas from "html2canvas";
 import {
   GOLD, GOLD_LIGHT, BLACK, SURFACE, SURFACE2, SURFACE3, TEXT, TEXT_MUTED,
   CATEGORIES, DAYS, MONTHS,
@@ -189,11 +190,20 @@ export default function App() {
   }, []);
 
   const [tab,       setTab]       = useState("public");
-  const [events,    setEvents]    = useState(seedEvents);
+  const [events,    setEvents]    = useState(() => {
+    try {
+      const saved = localStorage.getItem("kk-events");
+      return saved ? JSON.parse(saved) : seedEvents;
+    } catch { return seedEvents; }
+  });
   const [selEv,     setSelEv]     = useState(null);
   const [editEv,    setEditEv]    = useState(null);
   const [toast,     setToast]     = useState(null);
   const [monthView, setMonthView] = useState({ year: 2026, month: 4 });
+
+  useEffect(() => {
+    localStorage.setItem("kk-events", JSON.stringify(events));
+  }, [events]);
 
   const approved = events.filter(e => e.approved);
   const pending  = events.filter(e => !e.approved);
@@ -275,9 +285,35 @@ export default function App() {
 
 // ─── PUBLIC VIEW ──────────────────────────────────────────────────────────────
 function PublicView({ events, monthView, setMonthView }) {
-  const [pubTab, setPubTab] = useState("upcoming");
-  const [selEv,  setSelEv]  = useState(null);
+  const [pubTab,      setPubTab]      = useState("upcoming");
+  const [selEv,       setSelEv]       = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const captureRef = useRef(null);
   const today = todayStr();
+
+  const downloadImage = async () => {
+    const el = captureRef.current;
+    if (!el) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(el, {
+        backgroundColor: BLACK,
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: el.scrollWidth,
+        windowHeight: el.scrollHeight,
+      });
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `kingdom-keys-${pubTab}-${new Date().toISOString().split("T")[0]}.png`;
+      a.click();
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const upcoming = events
     .filter(e => e.date >= today)
@@ -295,7 +331,7 @@ function PublicView({ events, monthView, setMonthView }) {
   });
 
   return (
-    <div className="pub">
+    <div className="pub" ref={captureRef}>
       <div className="pub-hero">
         <div className="pub-hero-in">
           <div className="pub-eye">📅 KINGDOM KEYS MENTORING</div>
@@ -314,7 +350,14 @@ function PublicView({ events, monthView, setMonthView }) {
           <button className={`pub-tab${pubTab === "upcoming"  ? " on" : ""}`} onClick={() => setPubTab("upcoming")}>📋 Upcoming</button>
           <button className={`pub-tab${pubTab === "calendar"  ? " on" : ""}`} onClick={() => setPubTab("calendar")}>📆 Calendar</button>
         </div>
-        <div style={{ fontSize: 10, color: TEXT_MUTED }}>📸 Screenshot this tab to share with mentees &amp; parents</div>
+        <button
+          className="btn btn-gold btn-sm"
+          onClick={downloadImage}
+          disabled={downloading}
+          style={{ opacity: downloading ? .6 : 1 }}
+        >
+          {downloading ? "Saving…" : "📱 Save as Image"}
+        </button>
       </div>
 
       <div className="pub-main">
